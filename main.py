@@ -3,10 +3,10 @@ from database import crear_base_de_datos, crear_tabla_mantenciones, conectar_db,
 import datetime
 import calendar
 
-
-
+# Clase personalizada para generar un calendario con mantenciones programadas
 class CalendarioMantenciones(ft.Column):
     def __init__(self, anio, mes, mantenciones_programadas, ancho_celda, alto_encabezado, **kwargs):
+        # Inicialización de la clase con parámetros como año, mes y mantenciones
         super().__init__(horizontal_alignment=ft.CrossAxisAlignment.STRETCH, **kwargs)
         self.anio = anio
         self.mes = mes
@@ -15,7 +15,9 @@ class CalendarioMantenciones(ft.Column):
         self.alto_encabezado = alto_encabezado
         self.controls = self._crear_controles()
     
+    # Método para crear el calendario mensual con mantenciones
     def crear_calendario_mensual(self, year, month, mantenciones_programadas):
+        # Obtener el primer día de la semana y el número de días del mes
         first_day_weekday, num_days = calendar.monthrange(year, month)
         primer_dia_ajustado = (first_day_weekday - calendar.MONDAY) % 7
         dias_del_mes = []
@@ -89,10 +91,11 @@ class CalendarioMantenciones(ft.Column):
         semanas = [dias_del_mes[i:i + 7] for i in range(0, len(dias_del_mes), 7)]
         return semanas
     
-    
+    # Método para crear los controles del calendario
     def _crear_controles(self):
         controles = []
         dias_semana = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
+        # Crear encabezados para los días de la semana
         encabezados_semana = [
             ft.Container(
                 ft.Text(dia, weight=ft.FontWeight.BOLD, size=12),
@@ -112,7 +115,7 @@ class CalendarioMantenciones(ft.Column):
             controles.append(ft.Row(controls=semana, alignment=ft.MainAxisAlignment.SPACE_AROUND))
         return controles
         
-    
+    # Método para actualizar el calendario con nuevos datos
     def actualizar(self, anio, mes, mantenciones_programadas):
         self.anio = anio
         self.mes = mes
@@ -120,11 +123,13 @@ class CalendarioMantenciones(ft.Column):
         self.controls = self._crear_controles()
         self.update()
 
+# Función principal de la aplicación
 def main(page: ft.Page):
-
+    # Crear la base de datos y la tabla al iniciar la aplicación
     crear_base_de_datos()
     crear_tabla_mantenciones()
     
+    # Configuración inicial de la página
     page.title = "Gestión de Mantenciones"
     hoy = datetime.date.today()
     mes_actual = hoy.month
@@ -140,6 +145,7 @@ def main(page: ft.Page):
     calendario_widget = CalendarioMantenciones(anio_actual, mes_actual, [], ancho_celda, alto_encabezado)
     mes_anio_text = ft.Text(f"{calendar.month_name[mes_actual]} {anio_actual}", weight=ft.FontWeight.BOLD)
     
+    # Función para cargar las mantenciones desde la base de datos
     def cargar_mantenciones():
         nonlocal anio_actual, mes_actual
         conexion = conectar_db()
@@ -172,7 +178,7 @@ def main(page: ft.Page):
             page.snack_bar = ft.SnackBar(ft.Text("Error al conectar a la base de datos MySQL."), open=True)
             page.update()
     
-    
+    # Función para guardar una nueva mantención en la base de datos
     def guardar(e):
         nombre_empresa = nombre_empresa_input.value
         administrador = administrador_input.value
@@ -215,7 +221,7 @@ def main(page: ft.Page):
     
     guardar_button = ft.ElevatedButton(text="Guardar Mantención", on_click=guardar)
     
-    
+    # Función para calcular las fechas tentativas de mantenciones futuras
     def calcular_fechas_tentativas(ultima_mantencion_str, frecuencia_meses):
         try:
             ultima_mantencion = datetime.datetime.strptime(ultima_mantencion_str, "%Y-%m-%d").date()
@@ -251,6 +257,7 @@ def main(page: ft.Page):
             print("Error al procesar la fecha o la frecuencia.")
             return []
     
+    # Función para navegar entre meses en el calendario
     def navegar_mes(direccion):
         nonlocal mes_actual, anio_actual
         if direccion == -1:
@@ -270,6 +277,7 @@ def main(page: ft.Page):
     # Cargamos las mantenciones y el calendario al iniciar la aplicación
     page.on_load = cargar_mantenciones
     
+    # Agregar los controles a la página
     page.add(
         ft.Row(controls=[boton_anterior, mes_anio_text, boton_siguiente], alignment=ft.MainAxisAlignment.CENTER),
         ft.Column(
@@ -286,5 +294,6 @@ def main(page: ft.Page):
                 ]
             )
         )
+# Punto de entrada de la aplicación
 if __name__ == "__main__":
     ft.app(target=main)
