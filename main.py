@@ -1,5 +1,5 @@
 import flet as ft
-from database import crear_base_de_datos, Crear_tabla_mantenciones, conectar_db, cerrar_db, guardar_mantencion, obtener_mantenciones
+from database import crear_base_de_datos, crear_tabla_mantenciones, conectar_db, cerrar_db, guardar_mantencion, obtener_mantenciones
 import datetime
 import calendar
 
