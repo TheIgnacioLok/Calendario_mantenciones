@@ -385,6 +385,7 @@ def main(page: ft.Page):
         expand=True,             # Sigue siendo importante para que llene el View
         scroll=ft.ScrollMode.AUTO,
         spacing=20,
+        horizontal_alignment=ft.CrossAxisAlignment.STRETCH, # Centrar el contenido horizontalmente
         # Opcional: Controlar el ancho si es necesario, aunque suele adaptarse
         # width=800, # Podrías experimentar si el ancho causa problemas
         # horizontal_alignment=ft.CrossAxisAlignment.CENTER # Centrar si width está fijo
@@ -409,6 +410,13 @@ def main(page: ft.Page):
     contenedor_principal.controls.append(ft.Row([guardar_button], alignment=ft.MainAxisAlignment.CENTER))
     contenedor_principal.controls.append(ft.Divider())
     contenedor_principal.controls.append(ft.Text("Mantenciones Registradas", style=ft.TextThemeStyle.HEADLINE_SMALL))
+    tabla_mantenciones_container.min_height = 300  # Altura mínima deseada (ajústala a tu gusto)
+    tabla_mantenciones_container.max_height = 500  # Altura máxima deseada (ajústala a tu gusto)
+    tabla_mantenciones_container.scroll = ft.ScrollMode.AUTO # Scroll INTERNO para la tabla si excede max_height
+    # Opcional: Añadir un borde para visualizar el área del contenedor
+    tabla_mantenciones_container.border = ft.border.all(1, ft.colors.OUTLINE)
+    tabla_mantenciones_container.border_radius = ft.border_radius.all(5)
+    tabla_mantenciones_container.padding = ft.padding.all(5) # Padding dentro del contenedor, antes de la tabla
     contenedor_principal.controls.append(tabla_mantenciones_container)
 
 
@@ -435,9 +443,6 @@ def main(page: ft.Page):
     cargar_mantenciones()
     # page.update() # Y/o un update final aquí si cargar_mantenciones no lo hace
 
-# Punto de entrada de la aplicación
-if __name__ == "__main__":
-    ft.app(target=main)
 # Punto de entrada de la aplicación
 if __name__ == "__main__":
     ft.app(target=main)
