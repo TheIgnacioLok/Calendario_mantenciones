@@ -14,7 +14,7 @@ class CalendarioMantenciones(ft.Column):
         self.ancho_celda = ancho_celda
         self.alto_encabezado = alto_encabezado
         self.controls = self._crear_controles()
-    
+
     # Método para crear el calendario mensual con mantenciones
     def crear_calendario_mensual(self, year, month, mantenciones_programadas):
         # Obtener el primer día de la semana y el número de días del mes
@@ -51,14 +51,14 @@ class CalendarioMantenciones(ft.Column):
                         ft.Text(mantencion['empresa'], size=10, selectable=True, text_align=ft.TextAlign.CENTER),
                     )
                 content_children.extend(company_names_widgets)
-            
+
             day_content = ft.Column(
                 controls=content_children,
                 alignment=ft.MainAxisAlignment.CENTER,
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                 spacing=5
             )
-            
+
             indicator = None
             if tiene_mantencion:
                 indicator = ft.Container(
@@ -79,18 +79,18 @@ class CalendarioMantenciones(ft.Column):
                 width=self.ancho_celda,
                 height=70,
                 alignment=ft.alignment.top_center,
-                bgcolor=ft.colors.BLUE_GREY_100 if es_hoy else ft.colors.TRANSPARENT,
-                border=ft.border.all(1, ft.colors.BLACK12) if es_hoy else None,
+                bgcolor=ft.Colors.BLUE_GREY_100 if es_hoy else ft.Colors.TRANSPARENT,
+                border=ft.border.all(1, ft.Colors.BLACK12) if es_hoy else None,
                 border_radius=ft.border_radius.all(5) if es_hoy else None,
                 tooltip="\n\n".join(tooltip_content) if tooltip_content else None
-                )
+            )
             dias_del_mes.append(day_container)
-            # Agregar contenedores vacíos al final del mes si es necesario
+        # Agregar contenedores vacíos al final del mes si es necesario
         while len(dias_del_mes) % 7 != 0:
             dias_del_mes.append(ft.Container(width=self.ancho_celda, height=70))
         semanas = [dias_del_mes[i:i + 7] for i in range(0, len(dias_del_mes), 7)]
         return semanas
-    
+
     # Método para crear los controles del calendario
     def _crear_controles(self):
         controles = []
@@ -114,7 +114,7 @@ class CalendarioMantenciones(ft.Column):
                 semana.append(ft.Container(width=self.ancho_celda, height=70))
             controles.append(ft.Row(controls=semana, alignment=ft.MainAxisAlignment.SPACE_AROUND))
         return controles
-        
+
     # Método para actualizar el calendario con nuevos datos
     def actualizar(self, anio, mes, mantenciones_programadas):
         self.anio = anio
@@ -124,60 +124,54 @@ class CalendarioMantenciones(ft.Column):
         self.update()
 
 # Función principal de la aplicación
+
 def main(page: ft.Page):
     # Crear la base de datos y la tabla al iniciar la aplicación
     crear_base_de_datos()
     crear_tabla_mantenciones()
-    
+
     # Configuración inicial de la página
     page.title = "Gestión de Mantenciones"
+    #page.padding = ft.padding.all(10)
     hoy = datetime.date.today()
     mes_actual = hoy.month
     anio_actual = hoy.year
+    # --- Definición de Controles de Entrada ---
     nombre_empresa_input = ft.TextField(label="Nombre de la Empresa")
     administrador_input = ft.TextField(label="Administrador Solicitante")
     tecnico_input = ft.TextField(label="Técnico a Cargo")
     frecuencia_input = ft.TextField(label="Frecuencia (en meses)", keyboard_type=ft.KeyboardType.NUMBER)
     fecha_ultima_input = ft.TextField(label="Fecha Última Mantención (YYYY-MM-DD)")
     notas_input = ft.TextField(label="Notas", multiline=True)
-    ancho_celda = 60
+    # --- Definición de Widgets del Calendario y Tabla ---
+    ancho_celda = 100
     alto_encabezado = 30
+
     calendario_widget = CalendarioMantenciones(anio_actual, mes_actual, [], ancho_celda, alto_encabezado)
     mes_anio_text = ft.Text(f"{calendar.month_name[mes_actual]} {anio_actual}", weight=ft.FontWeight.BOLD)
-    
-    # Función para cargar las mantenciones desde la base de datos
-    def cargar_mantenciones():
-        nonlocal anio_actual, mes_actual
-        conexion = conectar_db()
-        if conexion:
-            mantenciones_db = obtener_mantenciones(conexion)
-            cerrar_db(conexion)
-            mantenciones_programadas = []
-            if mantenciones_db:
-                for mantencion in mantenciones_db:
-                    ultima_mantencion_db = mantencion[5]  # Es un objeto datetime.date
-                    ultima_mantencion_str = ultima_mantencion_db.strftime("%Y-%m-%d") if ultima_mantencion_db else None
-                    frecuencia = mantencion[4]
-                    fechas_tentativas = calcular_fechas_tentativas(ultima_mantencion_str, frecuencia)
-                    mantenciones_programadas.append({
-                        'id': mantencion[0],
-                        'empresa': mantencion[1],
-                        'frecuencia': frecuencia,
-                        'ultima_mantencion': ultima_mantencion_str,
-                        'fechas_tentativas': fechas_tentativas,
-                        'notas': mantencion[6]
-                    })
-            calendario_widget.actualizar(anio_actual, mes_actual, mantenciones_programadas)
-            mes_anio_text.value = f"{calendar.month_name[mes_actual]} {anio_actual}"
-            mes_anio_row = mes_anio_text.parent
-            if mes_anio_row:
-                mes_anio_row.update()
-            else:
-                page.update()
-        else:
-            page.snack_bar = ft.SnackBar(ft.Text("Error al conectar a la base de datos MySQL."), open=True)
-            page.update()
-    
+
+    # Contenedor para la tabla de mantenciones (inicialmente vacío)
+    tabla_mantenciones_container = ft.Container()
+
+    # Función para navegar entre meses en el calendario
+    def navegar_mes(direccion):
+        nonlocal mes_actual, anio_actual
+        if direccion == -1:
+            mes_actual -= 1
+            if mes_actual < 1:
+                mes_actual = 12
+                anio_actual -= 1
+        elif direccion == 1:
+            mes_actual += 1
+            if mes_actual > 12:
+                mes_actual = 1
+                anio_actual += 1
+        cargar_mantenciones()
+
+    # Botones para navegar entre meses
+    boton_anterior = ft.IconButton(ft.Icons.ARROW_LEFT, on_click=lambda _: navegar_mes(-1))
+    boton_siguiente = ft.IconButton(ft.Icons.ARROW_RIGHT, on_click=lambda _: navegar_mes(1))
+
     # Función para guardar una nueva mantención en la base de datos
     def guardar(e):
         nombre_empresa = nombre_empresa_input.value
@@ -191,7 +185,7 @@ def main(page: ft.Page):
             return
         fecha_ultima = fecha_ultima_input.value
         notas = notas_input.value
-        
+
         conexion = conectar_db()
         if conexion:
             if guardar_mantencion(
@@ -218,9 +212,139 @@ def main(page: ft.Page):
                 page.snack_bar = ft.SnackBar(ft.Text("Error al guardar la mantención."), open=True)
             cerrar_db(conexion)
             page.update()
-    
+
+    # Botón para guardar la mantención (DEFINICIÓN MOVIDA AQUÍ)
     guardar_button = ft.ElevatedButton(text="Guardar Mantención", on_click=guardar)
-    
+
+    # Función para cargar las mantenciones desde la base de datos
+    def cargar_mantenciones():
+        nonlocal anio_actual, mes_actual, calendario_widget, tabla_mantenciones_container, mes_anio_text
+        conexion = conectar_db()
+        if conexion:
+            mantenciones_db = obtener_mantenciones(conexion)
+            cerrar_db(conexion)
+            mantenciones_programadas = []
+            if mantenciones_db:
+                for mantencion in mantenciones_db:
+                    ultima_mantencion_db = mantencion[5]  # Es un objeto datetime.date
+                    ultima_mantencion_str = ultima_mantencion_db.strftime("%Y-%m-%d") if ultima_mantencion_db else None
+                    frecuencia = mantencion[4]
+                    fechas_tentativas = calcular_fechas_tentativas(ultima_mantencion_str, frecuencia)
+                    mantenciones_programadas.append({
+                        'id': mantencion[0],
+                        'empresa': mantencion[1],
+                        'frecuencia': frecuencia,
+                        'ultima_mantencion': ultima_mantencion_str,
+                        'fechas_tentativas': fechas_tentativas,
+                        'notas': mantencion[6]
+                    })
+            calendario_widget.actualizar(anio_actual, mes_actual, mantenciones_programadas)
+            mes_anio_text.value = f"{calendar.month_name[mes_actual]} {anio_actual}"
+            mes_anio_row = mes_anio_text.parent
+            if mes_anio_row:
+                mes_anio_row.update()
+            else:
+                page.update()
+
+            # Crear o actualizar la tabla de mantenciones
+            nueva_tabla = cargar_y_mostrar_mantenciones_tabla(page)
+            tabla_mantenciones_container.content = nueva_tabla
+            tabla_mantenciones_container.update()
+
+        else:
+            page.snack_bar = ft.SnackBar(ft.Text("Error al conectar a la base de datos MySQL."), open=True)
+            page.update()
+
+    # Llamar a cargar_mantenciones al inicio para que se cargue el calendario y la tabla
+    page.on_load = cargar_mantenciones
+
+    page.add(
+        ft.Row(controls=[boton_anterior, mes_anio_text, boton_siguiente], alignment=ft.MainAxisAlignment.CENTER),
+        ft.Column(
+            horizontal_alignment=ft.CrossAxisAlignment.STRETCH,
+            controls=[
+                nombre_empresa_input,
+                administrador_input,
+                tecnico_input,
+                frecuencia_input,
+                fecha_ultima_input,
+                notas_input,
+                guardar_button,  
+                calendario_widget,
+                ft.Divider(),
+                tabla_mantenciones_container,
+            ]
+        )
+    )
+
+    # Botón para guardar la mantención (DEFINICIÓN ACTUAL)
+    guardar_button = ft.ElevatedButton(text="Guardar Mantención", on_click=guardar)
+
+    page.add(
+        ft.Row(controls=[boton_anterior, mes_anio_text, boton_siguiente], alignment=ft.MainAxisAlignment.CENTER),
+        ft.Column(
+            horizontal_alignment=ft.CrossAxisAlignment.STRETCH,
+            controls=[
+                nombre_empresa_input,
+                administrador_input,
+                tecnico_input,
+                frecuencia_input,
+                fecha_ultima_input,
+                notas_input,
+                guardar_button,
+                calendario_widget,
+                ft.Divider(),  # Separador visual
+                tabla_mantenciones_container, # Aquí se mostrará la tabla
+            ]
+        )
+    )
+
+    def cargar_y_mostrar_mantenciones_tabla(page: ft.Page):
+        conexion = conectar_db()
+        if conexion:
+            mantenciones_db = obtener_mantenciones(conexion)
+            cerrar_db(conexion)
+
+            if mantenciones_db:
+                # Definir las columnas de la tabla
+                columnas = [
+                    {"label": "ID"},
+                    {"label": "Empresa"},
+                    {"label": "Admin."},
+                    {"label": "Técnico"},
+                    {"label": "Frecuencia (meses)"},
+                    {"label": "Última Mantención"},
+                    {"label": "Notas"}
+                ]
+
+                filas = []
+                for mantencion in mantenciones_db:
+                    filas.append(
+                        ft.DataRow(
+                            cells=[
+                                ft.DataCell(ft.Text(str(mantencion[0]))),  # ID
+                                ft.DataCell(ft.Text(mantencion[1])),      # Empresa
+                                ft.DataCell(ft.Text(mantencion[2])),      # Administrador
+                                ft.DataCell(ft.Text(mantencion[3])),      # Técnico
+                                ft.DataCell(ft.Text(str(mantencion[4]))),  # Frecuencia
+                                ft.DataCell(ft.Text(str(mantencion[5]))),  # Última Mantención
+                                ft.DataCell(ft.Text(mantencion[6])),      # Notas
+                            ]
+                        )
+                    )
+
+                tabla_mantenciones = ft.DataTable(
+                    columns=[ft.DataColumn(ft.Text(col["label"])) for col in columnas],
+                    rows=filas,
+                    column_spacing=20,
+                    horizontal_lines=ft.BorderSide(1, ft.colors.BLACK12),
+                )
+                return tabla_mantenciones
+            else:
+                return ft.Text("No hay mantenciones registradas.", italic=True)
+        else:
+            return ft.Text("Error al conectar a la base de datos para cargar las mantenciones.", color=ft.colors.RED)
+
     # Función para calcular las fechas tentativas de mantenciones futuras
     def calcular_fechas_tentativas(ultima_mantencion_str, frecuencia_meses):
         try:
@@ -256,44 +380,64 @@ def main(page: ft.Page):
         except ValueError:
             print("Error al procesar la fecha o la frecuencia.")
             return []
-    
-    # Función para navegar entre meses en el calendario
-    def navegar_mes(direccion):
-        nonlocal mes_actual, anio_actual
-        if direccion == -1:
-            mes_actual -= 1
-            if mes_actual < 1:
-                mes_actual = 12
-                anio_actual -= 1
-        elif direccion == 1:
-                mes_actual += 1
-                if mes_actual > 12:
-                    mes_actual = 1
-                    anio_actual += 1
-        cargar_mantenciones()
-    boton_anterior = ft.IconButton(ft.icons.ARROW_LEFT, on_click=lambda _: navegar_mes(-1))
-    boton_siguiente = ft.IconButton(ft.icons.ARROW_RIGHT, on_click=lambda _: navegar_mes(1))
+    # 1. Crear la columna principal SCROLLABLE (igual que antes)
+    contenedor_principal = ft.Column(
+        expand=True,             # Sigue siendo importante para que llene el View
+        scroll=ft.ScrollMode.AUTO,
+        spacing=20,
+        # Opcional: Controlar el ancho si es necesario, aunque suele adaptarse
+        # width=800, # Podrías experimentar si el ancho causa problemas
+        # horizontal_alignment=ft.CrossAxisAlignment.CENTER # Centrar si width está fijo
+    )
 
-    # Cargamos las mantenciones y el calendario al iniciar la aplicación
-    page.on_load = cargar_mantenciones
-    
-    # Agregar los controles a la página
-    page.add(
-        ft.Row(controls=[boton_anterior, mes_anio_text, boton_siguiente], alignment=ft.MainAxisAlignment.CENTER),
-        ft.Column(
-            horizontal_alignment=ft.CrossAxisAlignment.STRETCH,
-            controls=[
-                nombre_empresa_input,
-                administrador_input,
-                tecnico_input,
-                frecuencia_input,
-                fecha_ultima_input,
-                notas_input,
-                guardar_button,
-                calendario_widget,
-                ]
-            )
+    # 2. Añadir todos los controles a esta columna principal (igual que antes)
+    contenedor_principal.controls.append(ft.Text("Calendario Mantenciones", style=ft.TextThemeStyle.HEADLINE_SMALL))
+    contenedor_principal.controls.append(
+        ft.Row(
+            controls=[boton_anterior, mes_anio_text, boton_siguiente],
+            alignment=ft.MainAxisAlignment.CENTER
         )
+    )
+    
+    contenedor_principal.controls.append(calendario_widget)
+    contenedor_principal.controls.append(ft.Divider())
+    contenedor_principal.controls.append(ft.Text("Agregar Nueva Mantención", style=ft.TextThemeStyle.HEADLINE_SMALL))
+    contenedor_principal.controls.append(nombre_empresa_input)
+    # ... (resto de inputs y botón de guardar)
+    contenedor_principal.controls.append(ft.Row([frecuencia_input, fecha_ultima_input], alignment=ft.MainAxisAlignment.START,))
+    contenedor_principal.controls.append(notas_input)
+    contenedor_principal.controls.append(ft.Row([guardar_button], alignment=ft.MainAxisAlignment.CENTER))
+    contenedor_principal.controls.append(ft.Divider())
+    contenedor_principal.controls.append(ft.Text("Mantenciones Registradas", style=ft.TextThemeStyle.HEADLINE_SMALL))
+    contenedor_principal.controls.append(tabla_mantenciones_container)
+
+
+    # 3. Crear el View y poner el contenedor_principal DENTRO de él
+    view = ft.View(
+        "/",  # Ruta raíz para la vista (necesaria)
+        controls=[contenedor_principal], # La columna scrollable es el único control del View
+        padding=ft.padding.all(10), # Añade padding alrededor de todo el contenido
+        # Puedes añadir otras propiedades al View si las necesitas
+        vertical_alignment=ft.MainAxisAlignment.START,
+        horizontal_alignment=ft.CrossAxisAlignment.STRETCH,
+    )
+
+    # 4. Añadir el View a la página (¡ESTE ES EL CAMBIO CLAVE!)
+    # En lugar de page.add(contenedor_principal), usamos:
+    page.views.append(view)
+    page.go("/") # Navega a la vista que acabamos de añadir
+
+    # page.add(view) # Alternativa para apps muy simples sin routing, pero page.views es más estándar
+
+    # 5. Cargar los datos iniciales
+    # Asegúrate que la carga ocurra después de que la vista esté en la página
+    # page.update() # Puede ser necesario llamar a update después de añadir la vista y antes de cargar
+    cargar_mantenciones()
+    # page.update() # Y/o un update final aquí si cargar_mantenciones no lo hace
+
+# Punto de entrada de la aplicación
+if __name__ == "__main__":
+    ft.app(target=main)
 # Punto de entrada de la aplicación
 if __name__ == "__main__":
     ft.app(target=main)
