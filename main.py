@@ -210,39 +210,23 @@ def main(page: ft.Page):
 
     def eliminar_mantencion(e):
         print("Función eliminar_mantencion llamada")
+        print("Botón eliminar presionado")
         mantencion_id = e.control.data
         print(f"ID recibido para eliminar: {mantencion_id}")  # Depuración
 
-        def confirmar_eliminacion():
-            print(f"Eliminando mantención con ID: {mantencion_id}")
-            conexion = conectar_db()
-            if conexion:
-                if eliminar_mantencion_db(conexion, mantencion_id):
-                    print(f"Mantención con ID {mantencion_id} eliminada exitosamente.")  # Depuración
-                    page.snack_bar = ft.SnackBar(ft.Text(f"Mantención con ID {mantencion_id} eliminada exitosamente."), open=True)
-                else:
-                    print(f"Error al eliminar la mantención con ID {mantencion_id}.")  # Depuración
-                    page.snack_bar = ft.SnackBar(ft.Text(f"Error al eliminar la mantención con ID {mantencion_id}."), open=True)
-                cerrar_db(conexion)
-                cargar_mantenciones()  # Actualizar tabla
+        conexion = conectar_db()
+        if conexion:
+            if eliminar_mantencion_db(conexion, mantencion_id):
+                print(f"Mantención con ID {mantencion_id} eliminada exitosamente.")  # Depuración
+                page.snack_bar = ft.SnackBar(ft.Text(f"Mantención con ID {mantencion_id} eliminada exitosamente."), open=True)
             else:
-                print("Error al conectar a la base de datos.")  # Depuración
-                page.snack_bar = ft.SnackBar(ft.Text("Error al conectar a la base de datos."), open=True)
-            dialogo_eliminar.open = False
-            page.update()
-
-        dialogo_eliminar = ft.AlertDialog(
-            modal=True,
-            title=ft.Text("Confirmar Eliminación"),
-            content=ft.Text(f"¿Estás seguro de que quieres eliminar la mantención con ID {mantencion_id}?"),
-            actions=[
-                ft.TextButton("Sí", on_click=lambda _: confirmar_eliminacion()),
-                ft.TextButton("No", on_click=lambda _: dialogo_eliminar.close()),
-            ],
-            open=False
-        )
-        page.dialog = dialogo_eliminar
-        dialogo_eliminar.open = True
+                print(f"Error al eliminar la mantención con ID {mantencion_id}.")  # Depuración
+                page.snack_bar = ft.SnackBar(ft.Text(f"Error al eliminar la mantención con ID {mantencion_id}."), open=True)
+            cerrar_db(conexion)
+            cargar_mantenciones()  # Actualizar tabla
+        else:
+            print("Error al conectar a la base de datos.")  # Depuración
+            page.snack_bar = ft.SnackBar(ft.Text("Error al conectar a la base de datos."), open=True)
         page.update()
 
     # Función para guardar una nueva mantención o actualizar una existente
