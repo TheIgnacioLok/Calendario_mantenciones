@@ -1,5 +1,5 @@
 import flet as ft
-from database import crear_base_de_datos, crear_tabla_mantenciones, conectar_db, cerrar_db, guardar_mantencion, obtener_mantenciones
+from database import crear_base_de_datos, crear_tabla_mantenciones, conectar_db, cerrar_db, guardar_mantencion, obtener_mantenciones, obtener_mantencion_por_id, actualizar_mantencion_db, eliminar_mantencion_db
 import datetime
 import calendar
 
@@ -10,7 +10,7 @@ class CalendarioMantenciones(ft.Column):
         super().__init__(horizontal_alignment=ft.CrossAxisAlignment.STRETCH, **kwargs)
         self.anio = anio
         self.mes = mes
-        self.mantenciones_programadas = mantenciones_programadas
+        self.mantenciones_programadas = mantenciones_programadas  # Corregido
         self.ancho_celda = ancho_celda
         self.alto_encabezado = alto_encabezado
         self.controls = self._crear_controles()
@@ -124,7 +124,6 @@ class CalendarioMantenciones(ft.Column):
         self.update()
 
 # Función principal de la aplicación
-
 def main(page: ft.Page):
     # Crear la base de datos y la tabla al iniciar la aplicación
     crear_base_de_datos()
@@ -132,10 +131,11 @@ def main(page: ft.Page):
 
     # Configuración inicial de la página
     page.title = "Gestión de Mantenciones"
-    #page.padding = ft.padding.all(10)
     hoy = datetime.date.today()
     mes_actual = hoy.month
     anio_actual = hoy.year
+    editando_id = None  # Variable para rastrear el ID de la mantención que se está editando
+
     # --- Definición de Controles de Entrada ---
     nombre_empresa_input = ft.TextField(label="Nombre de la Empresa")
     administrador_input = ft.TextField(label="Administrador Solicitante")
@@ -172,8 +172,82 @@ def main(page: ft.Page):
     boton_anterior = ft.IconButton(ft.Icons.ARROW_LEFT, on_click=lambda _: navegar_mes(-1))
     boton_siguiente = ft.IconButton(ft.Icons.ARROW_RIGHT, on_click=lambda _: navegar_mes(1))
 
-    # Función para guardar una nueva mantención en la base de datos
+    def limpiar_formulario():
+        nombre_empresa_input.value = ""
+        administrador_input.value = ""
+        tecnico_input.value = ""
+        frecuencia_input.value = ""
+        fecha_ultima_input.value = ""
+        notas_input.value = ""
+        page.update()
+
+    def cargar_datos_en_formulario(mantencion):
+        nonlocal editando_id
+        editando_id = mantencion['id']
+        nombre_empresa_input.value = mantencion['empresa']
+        administrador_input.value = mantencion['administrador']
+        tecnico_input.value = mantencion['tecnico']
+        frecuencia_input.value = str(mantencion['frecuencia'])
+        fecha_ultima_input.value = mantencion['ultima_mantencion']
+        notas_input.value = mantencion['notas']
+        guardar_button.text = "Actualizar Mantención"
+        page.update()
+
+    def editar_mantencion(e):
+        mantencion_id = e.control.data
+        conexion = conectar_db()
+        if conexion:
+            mantencion = obtener_mantencion_por_id(conexion, mantencion_id)
+            cerrar_db(conexion)
+            if mantencion:
+                cargar_datos_en_formulario(mantencion)
+            else:
+                page.snack_bar = ft.SnackBar(ft.Text(f"No se encontró la mantención con ID: {mantencion_id}"), open=True)
+                page.update()
+        else:
+            page.snack_bar = ft.SnackBar(ft.Text("Error al conectar a la base de datos."), open=True)
+            page.update()
+
+    def eliminar_mantencion(e):
+        print("Función eliminar_mantencion llamada")
+        mantencion_id = e.control.data
+        print(f"ID recibido para eliminar: {mantencion_id}")  # Depuración
+
+        def confirmar_eliminacion():
+            print(f"Eliminando mantención con ID: {mantencion_id}")
+            conexion = conectar_db()
+            if conexion:
+                if eliminar_mantencion_db(conexion, mantencion_id):
+                    print(f"Mantención con ID {mantencion_id} eliminada exitosamente.")  # Depuración
+                    page.snack_bar = ft.SnackBar(ft.Text(f"Mantención con ID {mantencion_id} eliminada exitosamente."), open=True)
+                else:
+                    print(f"Error al eliminar la mantención con ID {mantencion_id}.")  # Depuración
+                    page.snack_bar = ft.SnackBar(ft.Text(f"Error al eliminar la mantención con ID {mantencion_id}."), open=True)
+                cerrar_db(conexion)
+                cargar_mantenciones()  # Actualizar tabla
+            else:
+                print("Error al conectar a la base de datos.")  # Depuración
+                page.snack_bar = ft.SnackBar(ft.Text("Error al conectar a la base de datos."), open=True)
+            dialogo_eliminar.open = False
+            page.update()
+
+        dialogo_eliminar = ft.AlertDialog(
+            modal=True,
+            title=ft.Text("Confirmar Eliminación"),
+            content=ft.Text(f"¿Estás seguro de que quieres eliminar la mantención con ID {mantencion_id}?"),
+            actions=[
+                ft.TextButton("Sí", on_click=lambda _: confirmar_eliminacion()),
+                ft.TextButton("No", on_click=lambda _: dialogo_eliminar.close()),
+            ],
+            open=False
+        )
+        page.dialog = dialogo_eliminar
+        dialogo_eliminar.open = True
+        page.update()
+
+    # Función para guardar una nueva mantención o actualizar una existente
     def guardar(e):
+        nonlocal editando_id
         nombre_empresa = nombre_empresa_input.value
         administrador = administrador_input.value
         tecnico = tecnico_input.value
@@ -188,32 +262,46 @@ def main(page: ft.Page):
 
         conexion = conectar_db()
         if conexion:
-            if guardar_mantencion(
-                conexion,
-                nombre_empresa,
-                administrador,
-                tecnico,
-                frecuencia,
-                fecha_ultima,
-                notas,
-            ):
-                page.snack_bar = ft.SnackBar(ft.Text("Mantención guardada exitosamente."), open=True)
-                # Recargamos las mantenciones y el calendario después de guardar
-                # Limpiar los campos después de guardar
-                nombre_empresa_input.value = ""
-                administrador_input.value = ""
-                tecnico_input.value = ""
-                frecuencia_input.value = ""
-                fecha_ultima_input.value = ""
-                notas_input.value = ""
-                page.update()
-                cargar_mantenciones()
+            if editando_id:
+                # Actualizar mantención existente
+                if actualizar_mantencion_db(
+                    conexion,
+                    editando_id,
+                    nombre_empresa,
+                    administrador,
+                    tecnico,
+                    frecuencia,
+                    fecha_ultima,
+                    notas,
+                ):
+                    page.snack_bar = ft.SnackBar(ft.Text(f"Mantención con ID {editando_id} actualizada exitosamente."), open=True)
+                else:
+                    page.snack_bar = ft.SnackBar(ft.Text(f"Error al actualizar la mantención con ID {editando_id}."), open=True)
+                guardar_button.text = "Guardar Mantención"
+                editando_id = None
             else:
-                page.snack_bar = ft.SnackBar(ft.Text("Error al guardar la mantención."), open=True)
+                # Guardar nueva mantención
+                if guardar_mantencion(
+                    conexion,
+                    nombre_empresa,
+                    administrador,
+                    tecnico,
+                    frecuencia,
+                    fecha_ultima,
+                    notas,
+                ):
+                    page.snack_bar = ft.SnackBar(ft.Text("Mantención guardada exitosamente."), open=True)
+                else:
+                    page.snack_bar = ft.SnackBar(ft.Text("Error al guardar la mantención."), open=True)
             cerrar_db(conexion)
+            limpiar_formulario()
+            cargar_mantenciones()
+            page.update()
+        else:
+            page.snack_bar = ft.SnackBar(ft.Text("Error al conectar a la base de datos MySQL."), open=True)
             page.update()
 
-    # Botón para guardar la mantención (DEFINICIÓN MOVIDA AQUÍ)
+    # Botón para guardar/actualizar la mantención
     guardar_button = ft.ElevatedButton(text="Guardar Mantención", on_click=guardar)
 
     # Función para cargar las mantenciones desde la base de datos
@@ -233,6 +321,8 @@ def main(page: ft.Page):
                     mantenciones_programadas.append({
                         'id': mantencion[0],
                         'empresa': mantencion[1],
+                        'administrador': mantencion[2],
+                        'tecnico': mantencion[3],
                         'frecuencia': frecuencia,
                         'ultima_mantencion': ultima_mantencion_str,
                         'fechas_tentativas': fechas_tentativas,
@@ -258,47 +348,6 @@ def main(page: ft.Page):
     # Llamar a cargar_mantenciones al inicio para que se cargue el calendario y la tabla
     page.on_load = cargar_mantenciones
 
-    page.add(
-        ft.Row(controls=[boton_anterior, mes_anio_text, boton_siguiente], alignment=ft.MainAxisAlignment.CENTER),
-        ft.Column(
-            horizontal_alignment=ft.CrossAxisAlignment.STRETCH,
-            controls=[
-                nombre_empresa_input,
-                administrador_input,
-                tecnico_input,
-                frecuencia_input,
-                fecha_ultima_input,
-                notas_input,
-                guardar_button,  
-                calendario_widget,
-                ft.Divider(),
-                tabla_mantenciones_container,
-            ]
-        )
-    )
-
-    # Botón para guardar la mantención (DEFINICIÓN ACTUAL)
-    guardar_button = ft.ElevatedButton(text="Guardar Mantención", on_click=guardar)
-
-    page.add(
-        ft.Row(controls=[boton_anterior, mes_anio_text, boton_siguiente], alignment=ft.MainAxisAlignment.CENTER),
-        ft.Column(
-            horizontal_alignment=ft.CrossAxisAlignment.STRETCH,
-            controls=[
-                nombre_empresa_input,
-                administrador_input,
-                tecnico_input,
-                frecuencia_input,
-                fecha_ultima_input,
-                notas_input,
-                guardar_button,
-                calendario_widget,
-                ft.Divider(),  # Separador visual
-                tabla_mantenciones_container, # Aquí se mostrará la tabla
-            ]
-        )
-    )
-
     def cargar_y_mostrar_mantenciones_tabla(page: ft.Page):
         conexion = conectar_db()
         if conexion:
@@ -314,24 +363,33 @@ def main(page: ft.Page):
                     {"label": "Técnico"},
                     {"label": "Frecuencia (meses)"},
                     {"label": "Última Mantención"},
-                    {"label": "Notas"}
+                    {"label": "Notas"},
+                    {"label": "Acciones"}  # Nueva columna para los botones
                 ]
 
                 filas = []
                 for mantencion in mantenciones_db:
-                    filas.append(
-                        ft.DataRow(
-                            cells=[
-                                ft.DataCell(ft.Text(str(mantencion[0]))),  # ID
-                                ft.DataCell(ft.Text(mantencion[1])),      # Empresa
-                                ft.DataCell(ft.Text(mantencion[2])),      # Administrador
-                                ft.DataCell(ft.Text(mantencion[3])),      # Técnico
-                                ft.DataCell(ft.Text(str(mantencion[4]))),  # Frecuencia
-                                ft.DataCell(ft.Text(str(mantencion[5]))),  # Última Mantención
-                                ft.DataCell(ft.Text(mantencion[6])),      # Notas
-                            ]
-                        )
+                    fila = ft.DataRow(
+                        cells=[
+                            ft.DataCell(ft.Text(str(mantencion[0]))),  # ID
+                            ft.DataCell(ft.Text(mantencion[1])),  # Empresa
+                            ft.DataCell(ft.Text(mantencion[2])),  # Administrador
+                            ft.DataCell(ft.Text(mantencion[3])),  # Técnico
+                            ft.DataCell(ft.Text(str(mantencion[4]))),  # Frecuencia
+                            ft.DataCell(ft.Text(str(mantencion[5]))),  # Última Mantención
+                            ft.DataCell(ft.Text(mantencion[6])),  # Notas
+                            ft.DataCell(
+                                ft.Row(
+                                    [
+                                        ft.IconButton(ft.Icons.EDIT, tooltip="Editar", data=mantencion[0], on_click=editar_mantencion),
+                                        ft.IconButton(ft.Icons.DELETE, tooltip="Eliminar", data=mantencion[0], on_click=eliminar_mantencion),
+                                    ],
+                                    alignment=ft.MainAxisAlignment.END
+                                )
+                            ),
+                        ]
                     )
+                    filas.append(fila)
 
                 tabla_mantenciones = ft.DataTable(
                     columns=[ft.DataColumn(ft.Text(col["label"])) for col in columnas],
@@ -380,18 +438,16 @@ def main(page: ft.Page):
         except ValueError:
             print("Error al procesar la fecha o la frecuencia.")
             return []
-    # 1. Crear la columna principal SCROLLABLE (igual que antes)
+
+    # 1. Crear la columna principal SCROLLABLE
     contenedor_principal = ft.Column(
-        expand=True,             # Sigue siendo importante para que llene el View
+        expand=True,
         scroll=ft.ScrollMode.AUTO,
         spacing=20,
-        horizontal_alignment=ft.CrossAxisAlignment.STRETCH, # Centrar el contenido horizontalmente
-        # Opcional: Controlar el ancho si es necesario, aunque suele adaptarse
-        # width=800, # Podrías experimentar si el ancho causa problemas
-        # horizontal_alignment=ft.CrossAxisAlignment.CENTER # Centrar si width está fijo
+        horizontal_alignment=ft.CrossAxisAlignment.STRETCH,
     )
 
-    # 2. Añadir todos los controles a esta columna principal (igual que antes)
+    # 2. Añadir todos los controles a esta columna principal
     contenedor_principal.controls.append(ft.Text("Calendario Mantenciones", style=ft.TextThemeStyle.HEADLINE_SMALL))
     contenedor_principal.controls.append(
         ft.Row(
@@ -399,49 +455,41 @@ def main(page: ft.Page):
             alignment=ft.MainAxisAlignment.CENTER
         )
     )
-    
+
     contenedor_principal.controls.append(calendario_widget)
     contenedor_principal.controls.append(ft.Divider())
-    contenedor_principal.controls.append(ft.Text("Agregar Nueva Mantención", style=ft.TextThemeStyle.HEADLINE_SMALL))
+    contenedor_principal.controls.append(ft.Text("Agregar/Editar Mantención", style=ft.TextThemeStyle.HEADLINE_SMALL))
     contenedor_principal.controls.append(nombre_empresa_input)
-    # ... (resto de inputs y botón de guardar)
+    contenedor_principal.controls.append(administrador_input)
+    contenedor_principal.controls.append(tecnico_input)
     contenedor_principal.controls.append(ft.Row([frecuencia_input, fecha_ultima_input], alignment=ft.MainAxisAlignment.START,))
     contenedor_principal.controls.append(notas_input)
     contenedor_principal.controls.append(ft.Row([guardar_button], alignment=ft.MainAxisAlignment.CENTER))
     contenedor_principal.controls.append(ft.Divider())
     contenedor_principal.controls.append(ft.Text("Mantenciones Registradas", style=ft.TextThemeStyle.HEADLINE_SMALL))
-    tabla_mantenciones_container.min_height = 300  # Altura mínima deseada (ajústala a tu gusto)
-    tabla_mantenciones_container.max_height = 500  # Altura máxima deseada (ajústala a tu gusto)
-    tabla_mantenciones_container.scroll = ft.ScrollMode.AUTO # Scroll INTERNO para la tabla si excede max_height
-    # Opcional: Añadir un borde para visualizar el área del contenedor
+    tabla_mantenciones_container.min_height = 300
+    tabla_mantenciones_container.max_height = 500
+    tabla_mantenciones_container.scroll = ft.ScrollMode.AUTO
     tabla_mantenciones_container.border = ft.border.all(1, ft.colors.OUTLINE)
     tabla_mantenciones_container.border_radius = ft.border_radius.all(5)
-    tabla_mantenciones_container.padding = ft.padding.all(5) # Padding dentro del contenedor, antes de la tabla
+    tabla_mantenciones_container.padding = ft.padding.all(5)
     contenedor_principal.controls.append(tabla_mantenciones_container)
-
 
     # 3. Crear el View y poner el contenedor_principal DENTRO de él
     view = ft.View(
-        "/",  # Ruta raíz para la vista (necesaria)
-        controls=[contenedor_principal], # La columna scrollable es el único control del View
-        padding=ft.padding.all(10), # Añade padding alrededor de todo el contenido
-        # Puedes añadir otras propiedades al View si las necesitas
+        "/",
+        controls=[contenedor_principal],
+        padding=ft.padding.all(10),
         vertical_alignment=ft.MainAxisAlignment.START,
         horizontal_alignment=ft.CrossAxisAlignment.STRETCH,
     )
 
-    # 4. Añadir el View a la página (¡ESTE ES EL CAMBIO CLAVE!)
-    # En lugar de page.add(contenedor_principal), usamos:
+    # 4. Añadir el View a la página
     page.views.append(view)
-    page.go("/") # Navega a la vista que acabamos de añadir
-
-    # page.add(view) # Alternativa para apps muy simples sin routing, pero page.views es más estándar
+    page.go("/")
 
     # 5. Cargar los datos iniciales
-    # Asegúrate que la carga ocurra después de que la vista esté en la página
-    # page.update() # Puede ser necesario llamar a update después de añadir la vista y antes de cargar
     cargar_mantenciones()
-    # page.update() # Y/o un update final aquí si cargar_mantenciones no lo hace
 
 # Punto de entrada de la aplicación
 if __name__ == "__main__":
