@@ -79,7 +79,7 @@ class CalendarioMantenciones(ft.Column):
                 width=self.ancho_celda,
                 height=70,
                 alignment=ft.alignment.top_center,
-                bgcolor=ft.Colors.BLUE_GREY_100 if es_hoy else ft.Colors.TRANSPARENT,
+                bgcolor=ft.Colors.BLUE_GREY_600 if es_hoy else ft.Colors.TRANSPARENT,
                 border=ft.border.all(1, ft.Colors.BLACK12) if es_hoy else None,
                 border_radius=ft.border_radius.all(5) if es_hoy else None,
                 tooltip="\n\n".join(tooltip_content) if tooltip_content else None
