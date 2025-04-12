@@ -3,6 +3,7 @@ import mysql.connector
 # Configuración de la conexión a la base de datos MySQL
 DB_CONFIG = {
     'host': 'localhost',   # Dirección del servidor MySQL
+    'port': 'puerto',    #puerto de la base de datos en caso de ser un servidor externo
     'user': 'root',       # Usuario de la base de datos
     'password': 'password.',   # Contraseña del usuario
     'database': 'gestion_mantenciones'   # Nombre de la base de datos
