@@ -3,12 +3,12 @@ import mysql.connector
 # Configuración de la conexión a la base de datos MySQL
 DB_CONFIG = {
     'host': 'localhost',   # Dirección del servidor MySQL
-    'port': 'puerto',    #puerto de la base de datos en caso de ser un servidor externo
-    'user': 'root',       # Usuario de la base de datos
-    'password': 'password.',   # Contraseña del usuario
+    'port': 3306,          # Puerto del servidor MySQL (por defecto es 3306)	
+    'user': 'user',       # Usuario de la base de datos
+    'password': 'pasword',   # Contraseña del usuario
     'database': 'gestion_mantenciones'   # Nombre de la base de datos
 }
-
+#agregar esta funcion a main en la funcion page, solo si se usa en servidor local, en caso de ser servidor externo no funciona, se debe crear la tabla de forma manual.
 # Función para crear la base de datos si no existe
 def crear_base_de_datos():
     try:
